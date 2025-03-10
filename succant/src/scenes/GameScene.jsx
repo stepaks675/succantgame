@@ -185,7 +185,7 @@ export default class GameScene extends Phaser.Scene {
       if (this.gameTime > 75000 && Math.random() < 0.2) {
         level = 4;
       }
-      if (this.gameTime > 100000 && Math.random() < 0.1) {
+      if (this.gameTime > 200000 && Math.random() < 0.1) {
         level = 5;
       }
       this.spawnEnemy(level);
@@ -209,7 +209,7 @@ export default class GameScene extends Phaser.Scene {
       this.playerStats.specials.shotgun > 0 &&
       currentTime > this.shotgunLastFired
     ) {
-      this.shotgunLastFired = currentTime + 6000 / this.playerStats.attackSpeed - 500*this.playerStats.specials.shotgun;
+      this.shotgunLastFired = currentTime + ((5500- 500*this.playerStats.specials.shotgun) / this.playerStats.attackSpeed);
       this.fireShotgun();
     }
     this.updateUI();
@@ -318,8 +318,8 @@ export default class GameScene extends Phaser.Scene {
 
     if (closestEnemy) {
       this.sound.play("shotgunshot");
-      const projectileCount = 3 + this.playerStats.specials.shotgun*2;
-      const spreadAngle = Phaser.Math.DegToRad(12+this.playerStats.specials.shotgun*2);
+      const projectileCount = 3 + this.playerStats.specials.shotgun*3;
+      const spreadAngle = Phaser.Math.DegToRad(12);
 
       for (let i = 0; i < projectileCount; i++) {
         const angleOffset = (i - Math.floor(projectileCount / 2)) * spreadAngle;
@@ -466,7 +466,6 @@ export default class GameScene extends Phaser.Scene {
         this.player.y,
         "projectile"
       );
-      projectile.setTint(0x00ffff);
 
       const angle = Phaser.Math.Angle.Between(
         this.player.x,
@@ -525,7 +524,7 @@ export default class GameScene extends Phaser.Scene {
         enemy.setScale(0.5);
         break;
       case 4:
-        enemy.health = 500;
+        enemy.health = 150;
         enemy.maxHealth = enemy.health;
         enemy.speed = 100;
         enemy.damage = 50;
