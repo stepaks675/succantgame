@@ -86,9 +86,9 @@ export default class GameScene extends Phaser.Scene {
     this.cursors = this.input.keyboard.createCursorKeys();
 
     this.turretSound = this.sound.add("turret");
-    this.bgSound = this.sound.add("bg", { loop: true });
+    this.bgSound = this.sound.add("bg", { loop: true, volume: 0.5 });
     this.hitSound = this.sound.add("hit");
-    this.shotSound = this.sound.add("shot");
+    this.shotSound = this.sound.add("shot", { volume: 0.5 });
     this.shotgunSound = this.sound.add("shotgunshot");
     this.hurtSound = this.sound.add("hurt");
 
