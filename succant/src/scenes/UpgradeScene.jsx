@@ -207,14 +207,14 @@ export default class UpgradeScene extends Phaser.Scene {
   
   createSpecialButtons() {
     const canUnlockSpecial = this.playerStats.level >= 5;
-    const nextSpecialLevel = Math.floor(this.playerStats.level / 5) * 5;
-    const canUpgradeSpecialNow = nextSpecialLevel > this.playerStats.lastSpecialUpgradeLevel;
+    const maxSpecialLevel = Math.floor(this.playerStats.level / 5)
+    this.playerStats.canUpgradeSpecial = this.playerStats.specials.turret + this.playerStats.specials.shotgun + this.playerStats.specials.pierce + this.playerStats.specials.claw < maxSpecialLevel
     
     const infoText = this.add.text(400, 200, 
       canUnlockSpecial 
-        ? (canUpgradeSpecialNow 
+        ? (this.playerStats.canUpgradeSpecial 
             ? 'Choose a special ability:' 
-            : `Next special ability available at level ${this.playerStats.lastSpecialUpgradeLevel + 5}`)
+            : `Next special ability available at level ${Math.floor(this.playerStats.level / 5) * 5 + 5}`)
         : 'Special abilities available starting from level 5', 
       { fontSize: '18px', fill: '#ffffff' }
     ).setOrigin(0.5);
@@ -264,7 +264,7 @@ export default class UpgradeScene extends Phaser.Scene {
       const requiredLevel = special.requiredLevel || 5;
       const isAvailable = this.playerStats.level >= requiredLevel;
       const currentLevel = this.playerStats.specials[special.key];
-      const canUpgrade = isAvailable && currentLevel < special.maxLevel && this.skillPoints > 0 && canUpgradeSpecialNow;
+      const canUpgrade = isAvailable && currentLevel < special.maxLevel && this.skillPoints > 0 && this.playerStats.canUpgradeSpecial;
       
       const nameText = this.add.text(200, special.y, 
         `${special.name} ${currentLevel > 0 ? `(Lvl ${currentLevel})` : ''}`, { 
@@ -317,7 +317,7 @@ export default class UpgradeScene extends Phaser.Scene {
             this.hideTooltip();
           })
           .on('pointerdown', () => {
-            if (this.skillPoints > 0 && canUpgradeSpecialNow) {
+            if (this.skillPoints > 0 && this.playerStats.canUpgradeSpecial) {
               this.upgradeSpecial(special);
               this.skillPointsText.setText(`Available Skill Points: ${this.skillPoints}`);
               
@@ -337,7 +337,7 @@ export default class UpgradeScene extends Phaser.Scene {
               
               if (newLevel >= special.maxLevel) {
                 upgradeButton.setText('Maximum').setStyle({ fill: '#555555', backgroundColor: '#222222' }).disableInteractive();
-              } else if (this.skillPoints <= 0 || !canUpgradeSpecialNow) {
+              } else if (this.skillPoints <= 0 || !this.playerStats.canUpgradeSpecial) {
                 upgradeButton.setStyle({ fill: '#555555', backgroundColor: '#222222' }).disableInteractive();
               }
               
@@ -347,7 +347,9 @@ export default class UpgradeScene extends Phaser.Scene {
                 this.updateAllButtons();
               }
               
-              infoText.setText(`Next special ability available at level ${this.playerStats.lastSpecialUpgradeLevel + 5}`);
+              infoText.setText((this.playerStats.canUpgradeSpecial 
+                ? 'Choose a special ability:' 
+                : `Next special ability available at level ${Math.floor(this.playerStats.level / 5) * 5 + 5}`));
             }
           });
       }
@@ -393,13 +395,10 @@ export default class UpgradeScene extends Phaser.Scene {
     
     if (this.playerStats.specials[special.key] >= special.maxLevel) return;
     
-    const nextSpecialLevel = Math.floor(this.playerStats.level / 5) * 5;
-    if (nextSpecialLevel <= this.playerStats.lastSpecialUpgradeLevel) return;
-    
     this.playerStats.specials[special.key]++;
-    this.playerStats.lastSpecialUpgradeLevel = nextSpecialLevel;
     
     this.skillPoints--;
     this.playerStats.skillPoints = this.skillPoints;
+    this.playerStats.canUpgradeSpecial = this.playerStats.specials.turret + this.playerStats.specials.shotgun + this.playerStats.specials.pierce + this.playerStats.specials.claw < Math.floor(this.playerStats.level / 5)
   }
 }
