@@ -118,9 +118,9 @@ export default class UpgradeScene extends Phaser.Scene {
     const upgrades = [
       {
         name: 'Health',
-        description: '+20 to maximum health',
+        description: '+25 to maximum health',
         stat: 'maxHealth',
-        amount: 20,
+        amount: 25,
         currentValue: this.playerStats.maxHealth,
         y: 200
       },
@@ -134,9 +134,9 @@ export default class UpgradeScene extends Phaser.Scene {
       },
       {
         name: 'Damage',
-        description: '+5 to damage',
+        description: '+4 to damage',
         stat: 'damage',
-        amount: 5,
+        amount: 4,
         currentValue: this.playerStats.damage,
         y: 320
       },

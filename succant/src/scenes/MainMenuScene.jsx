@@ -33,7 +33,7 @@ export default class MainMenuScene extends Phaser.Scene {
     const subtitle = this.add.text(
       this.cameras.main.width / 2,
       220,
-      "Выживи как можно дольше!",
+      "SURVIVE AS LONG AS POSSIBLE!",
       {
         fontSize: "24px",
         fill: "#ffff00",
@@ -47,7 +47,7 @@ export default class MainMenuScene extends Phaser.Scene {
       this.cameras.main.width / 2,
       320,
       "logo"
-    ).setScale(2).setTint(0x00ff00);
+    ).setScale(2)
 
 
     this.tweens.add({

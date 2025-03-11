@@ -19,12 +19,14 @@ export default class GameScene extends Phaser.Scene {
     this.load.image("turret1", "/assets/turret1.png");
     this.load.image("turret2", "/assets/turret2.png");
     this.load.image("turret3", "/assets/turret3.png");
+    this.load.image("claw", "/assets/claw.png");
 
     this.load.audio("turret", "/assets/turretsound.mp3");
     this.load.audio("bg", "/assets/sigmaboy.mp3");
     this.load.audio("hit", "/assets/hit.mp3");
     this.load.audio("shot", "/assets/shot.mp3");
     this.load.audio("shotgunshot", "/assets/shotgunshot.mp3");
+    this.load.audio("hurt", "/assets/hurt.mp3");
   }
 
   create() {
@@ -67,6 +69,7 @@ export default class GameScene extends Phaser.Scene {
     this.projectilesGroup = this.physics.add.group();
     this.experienceOrbsGroup = this.physics.add.group();
     this.turretsGroup = this.physics.add.group();
+    this.clawsGroup = this.physics.add.group();
 
     this.cursors = this.input.keyboard.createCursorKeys();
 
@@ -75,6 +78,7 @@ export default class GameScene extends Phaser.Scene {
     this.hitSound = this.sound.add("hit");
     this.shotSound = this.sound.add("shot");
     this.shotgunSound = this.sound.add("shotgunshot");
+    this.hurtSound = this.sound.add("hurt");
 
     this.spaceKey = this.input.keyboard.addKey(
       Phaser.Input.Keyboard.KeyCodes.SPACE
@@ -114,6 +118,13 @@ export default class GameScene extends Phaser.Scene {
       null,
       this
     );
+    this.physics.add.overlap(
+      this.clawsGroup,
+      this.enemiesGroup,
+      this.handleClawEnemyCollision,
+      null,
+      this
+    );
 
     this.physics.world.setBounds(0, 0, 1600, 1200);
 
@@ -135,6 +146,10 @@ export default class GameScene extends Phaser.Scene {
       loop: true,
     });
     this.bgSound.play();
+
+    this.clawRotationSpeed = 0.002 * Math.max(1, this.playerStats.attackSpeed/2);
+    this.clawBaseDistance = 65;
+    this.clawLastDamageTime = {};
   }
 
   regenHealth() {
@@ -185,13 +200,13 @@ export default class GameScene extends Phaser.Scene {
       if (this.gameTime > 75000 && Math.random() < 0.2) {
         level = 4;
       }
-      if (this.gameTime > 200000 && Math.random() < 0.1) {
+      if (this.gameTime > 150000 && Math.random() < 0.1) {
         level = 5;
       }
       this.spawnEnemy(level);
       this.enemySpawnTime =
         currentTime +
-        Math.max(200, 2000 - Math.floor(this.gameTime / 10000) * 200);
+        Math.max(200, 2000 - Math.floor(this.gameTime / 20000) * 180);
     }
 
     if (this.player.health <= 0) {
@@ -212,7 +227,104 @@ export default class GameScene extends Phaser.Scene {
       this.shotgunLastFired = currentTime + ((5500- 500*this.playerStats.specials.shotgun) / this.playerStats.attackSpeed);
       this.fireShotgun();
     }
+    
+    if (this.clawsGroup && this.playerStats.specials.claw > 0) {
+      const desiredClawCount = this.playerStats.specials.claw;
+      const currentClawCount = this.clawsGroup.getChildren().length;
+      
+      if (currentClawCount < desiredClawCount) {
+        this.clawsGroup.getChildren().forEach((claw) => {
+          claw.destroy();
+        });
+        for (let i = 0; i < desiredClawCount; i++) {
+          this.spawnClaw();
+        }
+      }
+
+      this.updateClaws();
+    }
+    
     this.updateUI();
+  }
+
+  spawnClaw() {
+    const currentClawCount = this.clawsGroup.getChildren().length;
+    
+    const angleOffset = (Math.PI * 2 / this.playerStats.specials.claw) * currentClawCount;
+    const startAngle = this.gameTime * 0.001 + angleOffset;
+    
+    const distance = this.clawBaseDistance + (this.playerStats.specials.claw * 10);
+    
+    const x = this.player.x + Math.cos(startAngle) * distance;
+    const y = this.player.y + Math.sin(startAngle) * distance;
+    
+    const claw = this.clawsGroup.create(x, y, "claw");
+    
+    switch (this.playerStats.specials.claw) {
+      case 1:
+        claw.damage = this.playerStats.damage * 0.9;
+        claw.scale = 0.8;
+        claw.damageInterval = 500 - this.playerStats.attackSpeed*15; 
+        break;
+      case 2:
+        claw.damage = this.playerStats.damage * 1;
+        claw.scale = 1.0;
+        claw.damageInterval = 400 - this.playerStats.attackSpeed*15; 
+        break;
+      case 3:
+        claw.damage = this.playerStats.damage * 1.1;
+        claw.scale = 1.2;
+        claw.damageInterval = 300 - this.playerStats.attackSpeed*15; 
+        break;
+    }
+    
+
+    claw.angleOffset = angleOffset;
+    claw.angle = startAngle * Phaser.Math.RAD_TO_DEG;
+    claw.setScale(claw.scale);
+    claw.active = true;
+  }
+  
+  updateClaws() {
+
+    this.clawsGroup.getChildren().forEach((claw) => {
+
+      if (!claw.active) claw.setTint(0x000000).setAlpha(0.5);
+      else claw.clearTint().setAlpha(1);
+
+      const angle = this.gameTime * this.clawRotationSpeed + claw.angleOffset;
+      
+      const distance = this.clawBaseDistance + (this.playerStats.specials.claw * 10);
+      
+      claw.x = this.player.x + Math.cos(angle) * distance;
+      claw.y = this.player.y + Math.sin(angle) * distance;
+      
+      claw.angle = angle * Phaser.Math.RAD_TO_DEG + 90;
+    });
+  }
+  
+  handleClawEnemyCollision(claw, enemy) {
+
+    if (claw.active) {
+      claw.active = false;
+
+      this.time.delayedCall(claw.damageInterval, () => {
+        claw.active = true;
+      });
+
+      enemy.health -= claw.damage;
+      
+      this.sound.play("hit");
+      
+      
+      if (enemy.health <= 0) {
+        this.kills++;
+        this.killsText.setText(`Kills: ${this.kills}`);
+        this.spawnExperienceOrb(enemy.x, enemy.y, enemy.expValue);
+        
+        enemy.destroy();
+      }
+    }
   }
 
   spawnTurret() {
@@ -237,12 +349,12 @@ export default class GameScene extends Phaser.Scene {
     }
     turret.setScale(0.3);
     const firingStartTime = this.gameTime;
-    const firingDuration = 15000;
+    const firingDuration = 18000;
 
     const fireTurretInterval = () => {
       if (this.gameTime - firingStartTime < firingDuration) {
         this.fireTurret(turret);
-        this.time.delayedCall(1000 / turret.attackSpeed, fireTurretInterval);
+        this.time.delayedCall(1100 / turret.attackSpeed, fireTurretInterval);
       } else {
         turret.destroy();
       }
@@ -284,7 +396,7 @@ export default class GameScene extends Phaser.Scene {
         closestEnemy.y
       );
 
-      const speed = 500;
+      const speed = 550;
 
       projectile.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed);
 
@@ -318,8 +430,8 @@ export default class GameScene extends Phaser.Scene {
 
     if (closestEnemy) {
       this.sound.play("shotgunshot");
-      const projectileCount = 3 + this.playerStats.specials.shotgun*3;
-      const spreadAngle = Phaser.Math.DegToRad(12);
+      const projectileCount = 2 + this.playerStats.specials.shotgun*3;
+      const spreadAngle = Phaser.Math.DegToRad(10);
 
       for (let i = 0; i < projectileCount; i++) {
         const angleOffset = (i - Math.floor(projectileCount / 2)) * spreadAngle;
@@ -336,7 +448,7 @@ export default class GameScene extends Phaser.Scene {
           "projectile"
         );
 
-        const speed = 200;
+        const speed = 220;
 
         projectile.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed);
 
@@ -504,7 +616,7 @@ export default class GameScene extends Phaser.Scene {
         enemy.maxHealth = enemy.health;
         enemy.speed = 100;
         enemy.damage = 10;
-        enemy.expValue = 20;
+        enemy.expValue = 18;
         enemy.setScale(0.25);
         break;
       case 2:
@@ -512,7 +624,7 @@ export default class GameScene extends Phaser.Scene {
         enemy.maxHealth = enemy.health;
         enemy.speed = 180;
         enemy.damage = 25;
-        enemy.expValue = 40;
+        enemy.expValue = 35;
         enemy.setScale(0.15);
         break;
       case 3:
@@ -520,15 +632,15 @@ export default class GameScene extends Phaser.Scene {
         enemy.maxHealth = enemy.health;
         enemy.speed = 80;
         enemy.damage = 30;
-        enemy.expValue = 100;
+        enemy.expValue = 90;
         enemy.setScale(0.5);
         break;
       case 4:
-        enemy.health = 150;
+        enemy.health = 140;
         enemy.maxHealth = enemy.health;
         enemy.speed = 100;
         enemy.damage = 50;
-        enemy.expValue = 400;
+        enemy.expValue = 350;
         enemy.setScale(0.7);
         break;
       case 5:
@@ -570,6 +682,7 @@ export default class GameScene extends Phaser.Scene {
     this.healthText.setText(
       `Health: ${Math.max(0, player.health)}/${this.playerStats.maxHealth}`
     );
+    this.hurtSound.play();
     const angle = Phaser.Math.Angle.Between(
       enemy.x,
       enemy.y,
