@@ -804,7 +804,7 @@ export default class GameScene extends Phaser.Scene {
         break;
       case 9:
         enemy.isBoss = true;
-        enemy.health = 300000;
+        enemy.health = 250000;
         enemy.maxHealth = enemy.health;
         enemy.speed = 15;
         enemy.damage = 500;
