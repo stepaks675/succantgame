@@ -768,7 +768,7 @@ export default class GameScene extends Phaser.Scene {
         break;
       case 5:
         enemy.isBoss = false;
-        enemy.health = 900;
+        enemy.health = 860;
         enemy.maxHealth = enemy.health;
         enemy.speed = 50;
         enemy.damage = 100;
@@ -777,7 +777,7 @@ export default class GameScene extends Phaser.Scene {
         break;
       case 6:
         enemy.isBoss = false;
-        enemy.health = 600;
+        enemy.health = 540;
         enemy.maxHealth = enemy.health;
         enemy.speed = 150;
         enemy.damage = 130;
@@ -795,7 +795,7 @@ export default class GameScene extends Phaser.Scene {
         break;
       case 8:
         enemy.isBoss = false;
-        enemy.health = 6000;
+        enemy.health = 7000;
         enemy.maxHealth = enemy.health;
         enemy.speed = 15;
         enemy.damage = 300;
@@ -808,7 +808,7 @@ export default class GameScene extends Phaser.Scene {
         enemy.maxHealth = enemy.health;
         enemy.speed = 15;
         enemy.damage = 500;
-        enemy.expValue = 10000;
+        enemy.expValue = 1;
         enemy.setScale(3.5);
         break;
     }
