@@ -34,9 +34,9 @@ function App() {
   }, []);
 
   return (
-    <div className="w-full h-full flex flex-col justify-center items-center">
-      <h1>SUCCANT SURVIVORS</h1>
-      <div id="game-container"></div>
+    <div className=" flex flex-col justify-center items-center gap-5">
+      <h1 className="text-white text-4xl font-bold">SUCCANT SURVIVORS</h1>
+      <div className="border-2 border-white" id="game-container"></div>
     </div>
   );
 }
