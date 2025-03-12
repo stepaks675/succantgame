@@ -36,17 +36,20 @@ export default class GameScene extends Phaser.Scene {
     this.load.audio("walk", "/assets/walk.mp3");
     this.load.audio("boss1", "/assets/boss1.mp3");
     this.load.audio("boss2", "/assets/boss2.mp3");
+    this.load.audio("win", "/assets/win.mp3");
+    this.load.audio("final", "/assets/final.mp3");
   }
 
   create() {
-    this.gamePhase = 1
+    this.blocked = false;
+    this.gamePhase = 1;
     this.bossNextAttack = 0;
     this.playerStats = {
       health: 150,
       maxHealth: 150,
-      damage: 10,
-      speed: 200,
-      attackSpeed: 1,
+      damage: 12,
+      speed: 220,
+      attackSpeed: 1.1,
       experience: 0,
       level: 1,
       skillPoints: 0,
@@ -93,18 +96,19 @@ export default class GameScene extends Phaser.Scene {
     });
     this.cursors = this.input.keyboard.createCursorKeys();
 
-    this.turretSound = this.sound.add("turret");
+    this.turretSound = this.sound.add("turret", { volume: 0.5 });
     this.bgSound = this.sound.add("bg", { loop: true, volume: 0.3 });
-    this.hitSound = this.sound.add("hit");
-    this.shotSound = this.sound.add("shot", { volume: 0.4 });
-    this.shotgunSound = this.sound.add("shotgunshot");
+    this.hitSound = this.sound.add("hit", { volume: 0.5 });
+    this.shotSound = this.sound.add("shot", { volume: 0.1 });
+    this.shotgunSound = this.sound.add("shotgunshot", { volume: 0.3 });
     this.hurtSound = this.sound.add("hurt");
     this.sirenSound = this.sound.add("siren");
     this.bossBgSound = this.sound.add("boss");
     this.boss1Sound = this.sound.add("boss1");
     this.boss2Sound = this.sound.add("boss2");
     this.walkSound = this.sound.add("walk");
-
+    this.winSound = this.sound.add("win");
+    this.finalSound = this.sound.add("final");
     this.spaceKey = this.input.keyboard.addKey(
       Phaser.Input.Keyboard.KeyCodes.SPACE
     );
@@ -187,30 +191,44 @@ export default class GameScene extends Phaser.Scene {
     if (this.gamePaused || this.gameOverScreen) return;
     this.gameTime += 1000 / 60;
     this.timeText.setText(`Time: ${Math.floor(this.gameTime / 1000)}`);
-
     const currentTime = this.gameTime;
 
     this.player.setVelocity(0);
 
-    if (this.cursors.left.isDown || this.keys.left.isDown) {
-      this.player.setVelocityX(-this.playerStats.speed);
-    } else if (this.cursors.right.isDown || this.keys.right.isDown) {
-      this.player.setVelocityX(this.playerStats.speed);
+    if (!this.blocked) {
+      if (this.cursors.left.isDown || this.keys.left.isDown) {
+        this.player.setVelocityX(-this.playerStats.speed);
+      } else if (this.cursors.right.isDown || this.keys.right.isDown) {
+        this.player.setVelocityX(this.playerStats.speed);
+      }
+
+      if (this.cursors.up.isDown || this.keys.up.isDown) {
+        this.player.setVelocityY(-this.playerStats.speed);
+      } else if (this.cursors.down.isDown || this.keys.down.isDown) {
+        this.player.setVelocityY(this.playerStats.speed);
+      }
+
+      if (
+        currentTime > this.lastFired &&
+        this.enemiesGroup.getChildren().length > 0
+      ) {
+        this.fireProjectile();
+        this.lastFired = currentTime + 1000 / this.playerStats.attackSpeed;
+      }
+
+      if (
+        this.playerStats.specials.shotgun > 0 &&
+        currentTime > this.shotgunLastFired
+      ) {
+        this.shotgunLastFired =
+          currentTime +
+          (5500 - 500 * this.playerStats.specials.shotgun) /
+            this.playerStats.attackSpeed;
+        this.fireShotgun();
+      }
     }
 
-    if (this.cursors.up.isDown || this.keys.up.isDown) {
-      this.player.setVelocityY(-this.playerStats.speed);
-    } else if (this.cursors.down.isDown || this.keys.down.isDown) {
-      this.player.setVelocityY(this.playerStats.speed);
-    }
-
-    if (
-      currentTime > this.lastFired &&
-      this.enemiesGroup.getChildren().length > 0
-    ) {
-      this.fireProjectile();
-      this.lastFired = currentTime + 1000 / this.playerStats.attackSpeed;
-    }
+    
 
     if (currentTime > this.enemySpawnTime && this.gamePhase == 1) {
       let level = this.gameTime < 150000 ? 1 : 3;
@@ -274,13 +292,27 @@ export default class GameScene extends Phaser.Scene {
       setTimeout(() => {
         this.bossBgSound.play();
         this.spawnEnemy(9);
-      },10000)
+      }, 10000);
       this.gamePhase = 2;
       this.bossNextAttack = this.gameTime + 15000;
     }
 
     if (this.gamePhase == 2) {
       this.BossPhase();
+    }
+
+    if (this.gamePhase == 3) {
+      this.winSound.play();
+      this.bossBgSound.stop();
+      this.gamePhase = 4;
+
+      setTimeout(() => {
+        this.finalSound.play();
+      }, 3000);
+
+      setTimeout(() => {
+        this.StartEnd();
+      }, 17000);
     }
 
     if (this.player.health <= 0) {
@@ -294,16 +326,6 @@ export default class GameScene extends Phaser.Scene {
       this.spawnTurret();
     }
 
-    if (
-      this.playerStats.specials.shotgun > 0 &&
-      currentTime > this.shotgunLastFired
-    ) {
-      this.shotgunLastFired =
-        currentTime +
-        (5500 - 500 * this.playerStats.specials.shotgun) /
-          this.playerStats.attackSpeed;
-      this.fireShotgun();
-    }
 
     if (this.clawsGroup && this.playerStats.specials.claw > 0) {
       const desiredClawCount = this.playerStats.specials.claw;
@@ -350,18 +372,18 @@ export default class GameScene extends Phaser.Scene {
 
     switch (this.playerStats.specials.claw) {
       case 1:
-        claw.damage = this.playerStats.damage * 2;
+        claw.damage = this.playerStats.damage * 2.5;
         claw.scale = 0.8;
         claw.damageInterval = 500 - this.playerStats.attackSpeed * 15;
         break;
       case 2:
-        claw.damage = this.playerStats.damage * 2.5;
+        claw.damage = this.playerStats.damage * 3;
         claw.scale = 1.0;
         claw.damageInterval = 400 - this.playerStats.attackSpeed * 15;
         break;
       case 3:
-        claw.damage = this.playerStats.damage * 3.5;
-        claw.scale = 1.2;
+        claw.damage = this.playerStats.damage * 4;
+        claw.scale = 1.3;
         claw.damageInterval = 300 - this.playerStats.attackSpeed * 15;
         break;
     }
@@ -439,6 +461,7 @@ export default class GameScene extends Phaser.Scene {
 
     const fireTurretInterval = () => {
       if (this.gameTime - firingStartTime < firingDuration) {
+        if (this.blocked) return;
         this.fireTurret(turret);
         this.time.delayedCall(1100 / turret.attackSpeed, fireTurretInterval);
       } else {
@@ -554,7 +577,7 @@ export default class GameScene extends Phaser.Scene {
   }
 
   createUI() {
-    this.uiGroup = this.add.group()
+    this.uiGroup = this.add.group();
 
     this.healthText = this.add
       .text(
@@ -564,14 +587,14 @@ export default class GameScene extends Phaser.Scene {
         { fontSize: "18px", fill: "#fff" }
       )
       .setScrollFactor(0)
-      .setDepth(10000)
+      .setDepth(10000);
     this.levelText = this.add
       .text(16, 40, `Level: ${this.playerStats.level}`, {
         fontSize: "18px",
         fill: "#fff",
       })
       .setScrollFactor(0)
-      .setDepth(10000)
+      .setDepth(10000);
     this.experienceText = this.add
       .text(
         16,
@@ -582,25 +605,25 @@ export default class GameScene extends Phaser.Scene {
         { fontSize: "18px", fill: "#fff" }
       )
       .setScrollFactor(0)
-      .setDepth(10000)
+      .setDepth(10000);
     this.skillPointsText = this.add
       .text(16, 88, `Skill Points: ${this.playerStats.skillPoints}`, {
         fontSize: "18px",
         fill: "#fff",
       })
       .setScrollFactor(0)
-      .setDepth(10000)
+      .setDepth(10000);
     this.killsText = this.add
       .text(16, 112, `Kills: ${this.kills}`, {
         fontSize: "18px",
         fill: "#fff",
       })
       .setScrollFactor(0)
-      .setDepth(10000)
+      .setDepth(10000);
     this.timeText = this.add
       .text(16, 136, `Time: 0`, { fontSize: "18px", fill: "#fff" })
       .setScrollFactor(0)
-      .setDepth(10000)
+      .setDepth(10000);
 
     this.upgradeHintText = this.add
       .text(400, 520, "Press SPACE for upgrade menu", {
@@ -708,6 +731,7 @@ export default class GameScene extends Phaser.Scene {
     const enemy = this.enemiesGroup.create(x, y, `enemy${level}`);
     switch (level) {
       case 1:
+        enemy.isBoss = false;
         enemy.health = 20;
         enemy.maxHealth = enemy.health;
         enemy.speed = 100;
@@ -716,6 +740,7 @@ export default class GameScene extends Phaser.Scene {
         enemy.setScale(0.25);
         break;
       case 2:
+        enemy.isBoss = false;
         enemy.health = 15;
         enemy.maxHealth = enemy.health;
         enemy.speed = 180;
@@ -724,6 +749,7 @@ export default class GameScene extends Phaser.Scene {
         enemy.setScale(0.15);
         break;
       case 3:
+        enemy.isBoss = false;
         enemy.health = 50;
         enemy.maxHealth = enemy.health;
         enemy.speed = 80;
@@ -732,6 +758,7 @@ export default class GameScene extends Phaser.Scene {
         enemy.setScale(0.5);
         break;
       case 4:
+        enemy.isBoss = false;
         enemy.health = 140;
         enemy.maxHealth = enemy.health;
         enemy.speed = 100;
@@ -740,7 +767,8 @@ export default class GameScene extends Phaser.Scene {
         enemy.setScale(0.7);
         break;
       case 5:
-        enemy.health = 1100;
+        enemy.isBoss = false;
+        enemy.health = 900;
         enemy.maxHealth = enemy.health;
         enemy.speed = 50;
         enemy.damage = 100;
@@ -748,7 +776,8 @@ export default class GameScene extends Phaser.Scene {
         enemy.setScale(1.1);
         break;
       case 6:
-        enemy.health = 650;
+        enemy.isBoss = false;
+        enemy.health = 600;
         enemy.maxHealth = enemy.health;
         enemy.speed = 150;
         enemy.damage = 130;
@@ -756,14 +785,16 @@ export default class GameScene extends Phaser.Scene {
         enemy.setScale(0.7);
         break;
       case 7:
-        enemy.health = 2200;
+        enemy.isBoss = false;
+        enemy.health = 2100;
         enemy.maxHealth = enemy.health;
         enemy.speed = 30;
         enemy.damage = 200;
-        enemy.expValue = 700;
+        enemy.expValue = 200;
         enemy.setScale(1.5);
         break;
       case 8:
+        enemy.isBoss = false;
         enemy.health = 6000;
         enemy.maxHealth = enemy.health;
         enemy.speed = 15;
@@ -772,12 +803,13 @@ export default class GameScene extends Phaser.Scene {
         enemy.setScale(2);
         break;
       case 9:
+        enemy.isBoss = true;
         enemy.health = 300000;
         enemy.maxHealth = enemy.health;
         enemy.speed = 15;
         enemy.damage = 500;
         enemy.expValue = 10000;
-        enemy.setScale(4);
+        enemy.setScale(3.5);
         break;
     }
 
@@ -786,7 +818,10 @@ export default class GameScene extends Phaser.Scene {
 
   updateEnemyMovement(enemy) {
     if (!enemy.active) return;
-
+    if (this.blocked) {
+      enemy.setVelocity(0, 0);
+      return;
+    }
     const angle = Phaser.Math.Angle.Between(
       enemy.x,
       enemy.y,
@@ -845,6 +880,7 @@ export default class GameScene extends Phaser.Scene {
     this.sound.play("hit");
 
     if (enemy.health <= 0) {
+      if (enemy.isBoss && this.gamePhase == 2) this.gamePhase = 3;
       this.kills++;
       this.killsText.setText(`Kills: ${this.kills}`);
 
@@ -988,7 +1024,7 @@ export default class GameScene extends Phaser.Scene {
         case 0:
           this.boss1Sound.play();
           for (let i = 0; i < 100; i++) {
-            this.spawnEnemy(i%8+1);
+            this.spawnEnemy((i % 8) + 1);
           }
           break;
         case 1:
@@ -996,11 +1032,11 @@ export default class GameScene extends Phaser.Scene {
 
           let speedchange = 250;
           if (this.playerStats.speed < 250) {
-            speedchange = 250 - this.playerStats.speed;
+            speedchange = this.playerStats.speed-20;
           }
-          let attackspeedchange = 5;
-          if (this.playerStats.attackSpeed < 5) {
-            attackspeedchange = 5 - this.playerStats.attackSpeed;
+          let attackspeedchange = 6;
+          if (this.playerStats.attackSpeed < 6) {
+            attackspeedchange = this.playerStats.attackSpeed - 1;
           }
 
           this.playerStats.speed -= speedchange;
@@ -1009,17 +1045,29 @@ export default class GameScene extends Phaser.Scene {
           setTimeout(() => {
             this.playerStats.speed += speedchange;
             this.playerStats.attackSpeed += attackspeedchange;
-          }, 7000);
+          }, 6500);
 
           break;
         case 2:
           this.boss1Sound.play();
-          for (let i = 0; i < 200; i++) {
+          for (let i = 0; i < 250; i++) {
             this.spawnEnemy(2);
           }
           break;
       }
-      this.bossNextAttack = this.gameTime + 5000;
+      this.bossNextAttack = this.gameTime + 4000;
     }
+  }
+  StartEnd() {
+    this.player.x = 800;
+    this.player.y = 600;
+    this.blocked = true;
+    setInterval(() => {
+      this.spawnEnemy(9);
+    }, 200);
+    setTimeout(() => {
+      this.finalSound.volume = 1.5
+      this.blocked = false;
+    }, 15000);
   }
 }
