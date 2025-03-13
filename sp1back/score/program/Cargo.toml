@@ -1,0 +1,9 @@
+[package]
+version = "0.1.0"
+name = "score"
+edition = "2021"
+
+[dependencies]
+sp1-zkvm = "4.0.0"
+serde = { version = "1.0", features = ["derive"] }
+

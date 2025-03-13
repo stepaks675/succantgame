@@ -2,8 +2,9 @@
 import Phaser from "phaser";
 
 export default class GameScene extends Phaser.Scene {
-  constructor() {
+  constructor(onScoreUpdate) {
     super({ key: "GameScene" });
+    this.onScoreUpdate = onScoreUpdate;
   }
 
   preload() {
@@ -44,6 +45,10 @@ export default class GameScene extends Phaser.Scene {
     this.blocked = false;
     this.gamePhase = 1;
     this.bossNextAttack = 0;
+
+    this.score = 0;
+    this.enemiesKilled = [0,0,0,0,0,0,0,0,0]
+
     this.playerStats = {
       health: 150,
       maxHealth: 150,
@@ -302,6 +307,7 @@ export default class GameScene extends Phaser.Scene {
     }
 
     if (this.gamePhase == 3) {
+      
       this.winSound.play();
       this.bossBgSound.stop();
       this.gamePhase = 4;
@@ -729,8 +735,10 @@ export default class GameScene extends Phaser.Scene {
     const y = this.player.y + Math.sin(angle) * distance;
 
     const enemy = this.enemiesGroup.create(x, y, `enemy${level}`);
+    enemy.level = level
     switch (level) {
       case 1:
+        enemy.score = 1;
         enemy.isBoss = false;
         enemy.health = 20;
         enemy.maxHealth = enemy.health;
@@ -740,6 +748,7 @@ export default class GameScene extends Phaser.Scene {
         enemy.setScale(0.25);
         break;
       case 2:
+        enemy.score = 5;
         enemy.isBoss = false;
         enemy.health = 15;
         enemy.maxHealth = enemy.health;
@@ -748,7 +757,8 @@ export default class GameScene extends Phaser.Scene {
         enemy.expValue = 35;
         enemy.setScale(0.15);
         break;
-      case 3:
+      case 3:   
+        enemy.score = 10;
         enemy.isBoss = false;
         enemy.health = 50;
         enemy.maxHealth = enemy.health;
@@ -758,6 +768,7 @@ export default class GameScene extends Phaser.Scene {
         enemy.setScale(0.5);
         break;
       case 4:
+        enemy.score = 20;
         enemy.isBoss = false;
         enemy.health = 140;
         enemy.maxHealth = enemy.health;
@@ -767,6 +778,7 @@ export default class GameScene extends Phaser.Scene {
         enemy.setScale(0.7);
         break;
       case 5:
+        enemy.score = 30;
         enemy.isBoss = false;
         enemy.health = 860;
         enemy.maxHealth = enemy.health;
@@ -776,6 +788,7 @@ export default class GameScene extends Phaser.Scene {
         enemy.setScale(1.1);
         break;
       case 6:
+        enemy.score = 50;
         enemy.isBoss = false;
         enemy.health = 540;
         enemy.maxHealth = enemy.health;
@@ -785,6 +798,7 @@ export default class GameScene extends Phaser.Scene {
         enemy.setScale(0.7);
         break;
       case 7:
+        enemy.score = 100;
         enemy.isBoss = false;
         enemy.health = 2100;
         enemy.maxHealth = enemy.health;
@@ -794,6 +808,7 @@ export default class GameScene extends Phaser.Scene {
         enemy.setScale(1.5);
         break;
       case 8:
+        enemy.score = 250;
         enemy.isBoss = false;
         enemy.health = 7000;
         enemy.maxHealth = enemy.health;
@@ -803,6 +818,7 @@ export default class GameScene extends Phaser.Scene {
         enemy.setScale(2);
         break;
       case 9:
+        enemy.score = 10000;
         enemy.isBoss = true;
         enemy.health = 250000;
         enemy.maxHealth = enemy.health;
@@ -880,6 +896,10 @@ export default class GameScene extends Phaser.Scene {
     this.sound.play("hit");
 
     if (enemy.health <= 0) {
+
+      this.score += enemy.score;
+      this.enemiesKilled[enemy.level-1]+=1;
+      
       if (enemy.isBoss && this.gamePhase == 2) this.gamePhase = 3;
       this.kills++;
       this.killsText.setText(`Kills: ${this.kills}`);
@@ -973,10 +993,12 @@ export default class GameScene extends Phaser.Scene {
   handleGameOver() {
     if (this.gameOverScreen) return;
 
+    this.bossBgSound.stop();
     this.bgSound.stop();
     this.hitSound.stop();
     this.turretSound.stop();
     this.sound.stopAll();
+    this.finalSound.stop();
 
     this.gameOverScreen = true;
 
@@ -1013,8 +1035,19 @@ export default class GameScene extends Phaser.Scene {
         this.scene.start("MainMenuScene");
       });
 
+    const scoreText = this.add
+      .text(centerX, centerY + 180, `Score: ${this.score}`, {
+        fontSize: "32px",
+        fill: "#ffffff",
+      })
+      .setOrigin(0.5);
+      
     this.gamePaused = true;
     this.physics.pause();
+
+    if (this.onScoreUpdate) {
+      this.onScoreUpdate(this.score, this.enemiesKilled.map(e => e));
+    }
   }
 
   BossPhase() {
@@ -1058,6 +1091,7 @@ export default class GameScene extends Phaser.Scene {
       this.bossNextAttack = this.gameTime + 4000;
     }
   }
+  
   StartEnd() {
     this.player.x = 800;
     this.player.y = 600;
